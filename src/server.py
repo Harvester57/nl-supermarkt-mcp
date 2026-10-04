@@ -212,7 +212,15 @@ async def call_tool(name: str, arguments: dict):
             supermarkt = arguments.get('supermarkt')
             limit = arguments.get('limit', 10)
             if supermarkt:
-                cur.execute('SELECT p.*, s.name as supermarket_name, s.icon FROM products p JOIN supermarkets s ON p.supermarket_code = s.code WHERE p.name ILIKE %s AND p.supermarket_code = %s ORDER BY p.price ASC LIMIT %s', (f'%{query}%', supermarkt, limit))
+                if isinstance(supermarkt, list):
+                    store_list = [str(s).strip().lower() for s in supermarkt if str(s).strip()]
+                else:
+                    store_list = [s.strip().lower() for s in str(supermarkt).split(',') if s.strip()]
+                
+                if len(store_list) == 1:
+                    cur.execute('SELECT p.*, s.name as supermarket_name, s.icon FROM products p JOIN supermarkets s ON p.supermarket_code = s.code WHERE p.name ILIKE %s AND p.supermarket_code = %s ORDER BY p.price ASC LIMIT %s', (f'%{query}%', store_list[0], limit))
+                else:
+                    cur.execute('SELECT p.*, s.name as supermarket_name, s.icon FROM products p JOIN supermarkets s ON p.supermarket_code = s.code WHERE p.name ILIKE %s AND p.supermarket_code = ANY(%s) ORDER BY p.price ASC LIMIT %s', (f'%{query}%', store_list, limit * len(store_list)))
             else:
                 cur.execute('SELECT p.*, s.name as supermarket_name, s.icon FROM products p JOIN supermarkets s ON p.supermarket_code = s.code WHERE p.name ILIKE %s ORDER BY p.price ASC LIMIT %s', (f'%{query}%', limit))
             results = cur.fetchall()
