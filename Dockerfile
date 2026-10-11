@@ -4,11 +4,13 @@ WORKDIR /app
 
 # Install dependencies
 RUN apt-get update && apt-get install -y libpq5 && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir mcp httpx uvicorn starlette psycopg2-binary sse-starlette
-
-# Copy source
+# Copy project files and source
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
-COPY pyproject.toml .
+
+# Install dependencies from pyproject.toml
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
 
 # Environment variables with defaults
 ENV DB_HOST=db

@@ -5,6 +5,7 @@ __pycache__
 .git
 .gitignore
 *.md
+!README.md
 test_server.py
 *.zip
 .env
