@@ -9,6 +9,7 @@ from math import radians, sin, cos, sqrt, atan2
 import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
+import mcp.types as types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
@@ -73,10 +74,7 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * atan2(sqrt(a), sqrt(1-a))
     return R * c
 
-server = Server('nl-supermarkt-mcp')
-
-@server.list_tools()
-async def list_tools():
+def get_tools():
     return [
         # Bestaande tools
         Tool(name='zoek_producten', description='Zoek producten op naam bij supermarkten en drogisten.',
@@ -198,7 +196,10 @@ async def list_tools():
              }, 'required': ['producten']}),
     ]
 
-@server.call_tool()
+async def list_tools():
+    """Return all registered MCP tools."""
+    return get_tools()
+
 async def call_tool(name: str, arguments: dict):
     conn = None
     try:
@@ -1052,6 +1053,39 @@ async def call_tool(name: str, arguments: dict):
     finally:
         if conn:
             release_db(conn)
+
+async def _on_list_tools(ctx=None, params=None):
+    tools = await list_tools() if asyncio.iscoroutinefunction(list_tools) else list_tools()
+    if hasattr(types, "ListToolsResult"):
+        return types.ListToolsResult(tools=tools)
+    return tools
+
+async def _on_call_tool(ctx, params=None):
+    if params is None:
+        name = ""
+        arguments = {}
+    elif isinstance(params, dict):
+        name = params.get("name", "")
+        arguments = params.get("arguments", {}) or {}
+    else:
+        name = getattr(params, "name", "")
+        arguments = getattr(params, "arguments", {}) or {}
+
+    result = await call_tool(name, arguments)
+    if hasattr(types, "CallToolResult") and not isinstance(result, types.CallToolResult):
+        return types.CallToolResult(content=result)
+    return result
+
+if hasattr(Server, "list_tools"):
+    server = Server('nl-supermarkt-mcp')
+    server.list_tools()(list_tools)
+    server.call_tool()(call_tool)
+else:
+    server = Server(
+        'nl-supermarkt-mcp',
+        on_list_tools=_on_list_tools,
+        on_call_tool=_on_call_tool,
+    )
 
 async def main():
     async with stdio_server() as (read_stream, write_stream):
