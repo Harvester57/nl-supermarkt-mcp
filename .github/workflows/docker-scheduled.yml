@@ -1,0 +1,24 @@
+name: Docker image scheduled build - No cache
+
+on:
+  schedule:
+    - cron: '23 1 * * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-nocache:
+    permissions:
+      contents: write
+      security-events: write
+      actions: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: Harvester57/reusable-workflows/.github/workflows/docker-reusable-scheduled-build.yml@main
